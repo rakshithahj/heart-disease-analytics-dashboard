@@ -1,0 +1,26 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+import pickle
+
+# Load dataset
+df = pd.read_csv("heart.csv")
+
+# Features and target
+X = df.drop("target", axis=1)
+y = df["target"]
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Train KNN model
+knn = KNeighborsClassifier(n_neighbors=5)
+knn.fit(X_train, y_train)
+
+# Save model as heart_knn.pkl
+with open("heart_knn.pkl", "wb") as file:
+    pickle.dump(knn, file)
+
+print("heart_knn.pkl created successfully!")
