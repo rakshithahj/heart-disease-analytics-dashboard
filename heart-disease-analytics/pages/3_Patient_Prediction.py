@@ -1,39 +1,241 @@
+# pages/3_Patient_Prediction.py
+
 import streamlit as st
+import pandas as pd
 import numpy as np
-import pickle
 
-st.title("🩺 Patient Prediction")
+from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
 
-# Load Model
-with open("heart_knn.pkl", "rb") as file:
-    model = pickle.load(file)
+# =====================================
+# PAGE CONFIG
+# =====================================
 
-age = st.number_input("Age", 20, 100, 50)
-sex = st.selectbox("Sex", [0, 1])
-cp = st.number_input("Chest Pain Type", 0, 3, 1)
-trestbps = st.number_input("Resting Blood Pressure", 80, 250, 120)
-chol = st.number_input("Cholesterol", 100, 600, 200)
-fbs = st.selectbox("Fasting Blood Sugar", [0, 1])
-restecg = st.number_input("Rest ECG", 0, 2, 1)
-thalach = st.number_input("Max Heart Rate", 60, 220, 150)
-exang = st.selectbox("Exercise Angina", [0, 1])
-oldpeak = st.number_input("Old Peak", 0.0, 10.0, 1.0)
-slope = st.number_input("Slope", 0, 2, 1)
-ca = st.number_input("CA", 0, 4, 0)
-thal = st.number_input("Thal", 0, 3, 2)
+st.set_page_config(
+    page_title="Patient Prediction",
+    page_icon="❤️",
+    layout="wide"
+)
 
-if st.button("Predict"):
+st.title("🩺 Heart Disease Risk Prediction")
 
-    input_data = np.array([[
-        age, sex, cp, trestbps, chol,
-        fbs, restecg, thalach,
-        exang, oldpeak, slope,
-        ca, thal
-    ]])
+# =====================================
+# LOAD DATA
+# =====================================
 
-    prediction = model.predict(input_data)
+@st.cache_data
+def load_data():
+    return pd.read_csv("data/heart.csv")
 
-    if prediction[0] == 1:
-        st.error("⚠️ Heart Disease Detected")
+df = load_data()
+
+# =====================================
+# TRAIN MODEL
+# =====================================
+
+X = df.drop("HeartDisease", axis=1)
+y = df["HeartDisease"]
+
+nominal_cols = [
+    "Sex",
+    "ChestPainType",
+    "RestingECG",
+    "ST_Slope"
+]
+
+ordinal_cols = [
+    "ExerciseAngina"
+]
+
+numeric_cols = [
+    "Age",
+    "RestingBP",
+    "Cholesterol",
+    "FastingBS",
+    "MaxHR",
+    "Oldpeak"
+]
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        (
+            "nominal",
+            OneHotEncoder(handle_unknown="ignore"),
+            nominal_cols
+        ),
+        (
+            "ordinal",
+            OrdinalEncoder(),
+            ordinal_cols
+        ),
+        (
+            "numeric",
+            StandardScaler(),
+            numeric_cols
+        )
+    ]
+)
+
+model = Pipeline([
+    ("preprocessor", preprocessor),
+    ("classifier", KNeighborsClassifier(n_neighbors=10))
+])
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42
+)
+
+model.fit(X_train, y_train)
+
+# =====================================
+# USER INPUT
+# =====================================
+
+st.subheader("Enter Patient Information")
+
+col1, col2 = st.columns(2)
+
+with col1:
+
+    age = st.slider(
+        "Age",
+        20,
+        90,
+        50
+    )
+
+    sex = st.selectbox(
+        "Sex",
+        ["M", "F"]
+    )
+
+    chest_pain = st.selectbox(
+        "Chest Pain Type",
+        ["ATA", "NAP", "ASY", "TA"]
+    )
+
+    resting_bp = st.number_input(
+        "Resting Blood Pressure",
+        80,
+        250,
+        120
+    )
+
+    cholesterol = st.number_input(
+        "Cholesterol",
+        0,
+        700,
+        200
+    )
+
+with col2:
+
+    fasting_bs = st.selectbox(
+        "Fasting Blood Sugar > 120",
+        [0, 1]
+    )
+
+    resting_ecg = st.selectbox(
+        "Resting ECG",
+        ["Normal", "LVH", "ST"]
+    )
+
+    max_hr = st.slider(
+        "Maximum Heart Rate",
+        60,
+        220,
+        150
+    )
+
+    exercise_angina = st.selectbox(
+        "Exercise Angina",
+        ["N", "Y"]
+    )
+
+    oldpeak = st.slider(
+        "Old Peak",
+        0.0,
+        6.5,
+        1.0
+    )
+
+    st_slope = st.selectbox(
+        "ST Slope",
+        ["Up", "Flat", "Down"]
+    )
+
+# =====================================
+# PREDICT BUTTON
+# =====================================
+
+if st.button("🔍 Predict Risk"):
+
+    patient_data = pd.DataFrame({
+        "Age": [age],
+        "Sex": [sex],
+        "ChestPainType": [chest_pain],
+        "RestingBP": [resting_bp],
+        "Cholesterol": [cholesterol],
+        "FastingBS": [fasting_bs],
+        "RestingECG": [resting_ecg],
+        "MaxHR": [max_hr],
+        "ExerciseAngina": [exercise_angina],
+        "Oldpeak": [oldpeak],
+        "ST_Slope": [st_slope]
+    })
+
+    prediction = model.predict(patient_data)[0]
+
+    probability = model.predict_proba(patient_data)[0]
+
+    risk_probability = probability[1] * 100
+
+    st.divider()
+
+    st.subheader("Prediction Result")
+
+    if prediction == 1:
+
+        st.error(
+            f"⚠ High Risk of Heart Disease ({risk_probability:.2f}%)"
+        )
+
     else:
-        st.success("✅ No Heart Disease Detected")
+
+        st.success(
+            f"✅ Low Risk of Heart Disease ({100-risk_probability:.2f}%)"
+        )
+
+    st.progress(float(risk_probability / 100))
+
+    st.metric(
+        "Risk Score",
+        f"{risk_probability:.2f}%"
+    )
+
+    # =====================================
+    # PATIENT SUMMARY
+    # =====================================
+
+    st.subheader("Patient Summary")
+
+    st.dataframe(
+        patient_data,
+        use_container_width=True
+    )
+
+# =====================================
+# FOOTER
+# =====================================
+
+st.divider()
+
+st.caption(
+    "Heart Disease Prediction System | Streamlit + Scikit-Learn"
+)
