@@ -6,6 +6,4 @@ scikit-learn
 joblib
 matplotlib
 seaborn
-shap
-ydata-profiling
-streamlit-option-menu
+
