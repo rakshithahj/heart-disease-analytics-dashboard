@@ -1,0 +1,13 @@
+# logo.py
+
+import streamlit as st
+from PIL import Image
+
+# Load logo
+logo = Image.open("assets/logo.png")
+
+# Display logo
+st.image(logo, width=200)
+
+st.title("❤️ Heart Disease Analytics Dashboard")
+st.write("Welcome to the Heart Disease Prediction System")
