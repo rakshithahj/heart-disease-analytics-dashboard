@@ -1,6 +1,0 @@
-# banner.py
-
-import streamlit as st
-
-def show_banner():
-    st.image("assets/banner.png", use_container_width=True)
